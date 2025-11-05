@@ -1,16 +1,21 @@
 import '@shopify/shopify-api/adapters/node';
 import { shopifyApi, ApiVersion } from '@shopify/shopify-api';
-import { restResources } from '@shopify/shopify-api/rest/admin/2024-01';
 
-const shopify = shopifyApi({
-  apiKey: process.env.SHOPIFY_API_KEY!,
-  apiSecretKey: process.env.SHOPIFY_API_SECRET!,
-  scopes: ['read_orders', 'read_customers'],
-  hostName: process.env.SHOPIFY_SHOP_DOMAIN || '',
-  apiVersion: ApiVersion.January24,
-  isEmbeddedApp: false,
-  restResources,
-});
+let shopifyInstance: ReturnType<typeof shopifyApi> | null = null;
+
+function getShopify() {
+  if (!shopifyInstance) {
+    shopifyInstance = shopifyApi({
+      apiKey: process.env.SHOPIFY_API_KEY || '',
+      apiSecretKey: process.env.SHOPIFY_API_SECRET || '',
+      scopes: ['read_orders', 'read_customers'],
+      hostName: process.env.SHOPIFY_SHOP_DOMAIN || '',
+      apiVersion: ApiVersion.January23,
+      isEmbeddedApp: false,
+    });
+  }
+  return shopifyInstance;
+}
 
 export interface ShopifyOrder {
   id: string;
@@ -36,6 +41,7 @@ export async function getShopifyOrders(): Promise<ShopifyOrder[]> {
     throw new Error('SHOPIFY_ACCESS_TOKEN is not configured');
   }
 
+  const shopify = getShopify();
   const session = shopify.session.customAppSession(process.env.SHOPIFY_SHOP_DOMAIN || '');
   session.accessToken = accessToken;
 
@@ -53,7 +59,7 @@ export async function getShopifyOrders(): Promise<ShopifyOrder[]> {
       },
     });
 
-    const orders = response.body.orders as ShopifyOrder[];
+    const orders = (response.body as { orders: ShopifyOrder[] }).orders;
     
     // Filter orders that might need pickup emails
     // You can customize this logic based on your needs
@@ -74,6 +80,7 @@ export async function getShopifyOrder(orderId: string): Promise<ShopifyOrder | n
     throw new Error('SHOPIFY_ACCESS_TOKEN is not configured');
   }
 
+  const shopify = getShopify();
   const session = shopify.session.customAppSession(process.env.SHOPIFY_SHOP_DOMAIN || '');
   session.accessToken = accessToken;
 
@@ -84,7 +91,7 @@ export async function getShopifyOrder(orderId: string): Promise<ShopifyOrder | n
       path: `orders/${orderId}`,
     });
 
-    return response.body.order as ShopifyOrder;
+    return (response.body as { order: ShopifyOrder }).order;
   } catch (error) {
     console.error(`Error fetching Shopify order ${orderId}:`, error);
     return null;

@@ -9,6 +9,7 @@
     "lint": "next lint"
   },
   "dependencies": {
+    "@auth/firebase-adapter": "^2.11.1",
     "@shopify/shopify-api": "^7.7.0",
     "date-fns": "^2.30.0",
     "firebase-admin": "^13.5.0",
@@ -32,5 +33,3 @@
     "typescript": "^5.3.3"
   }
 }
-
-

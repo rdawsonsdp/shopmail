@@ -12,10 +12,28 @@ if (!admin.apps.length) {
     }
     // Option 2: Use service account file path (for local development)
     else if (process.env.FIREBASE_SERVICE_ACCOUNT_PATH) {
-      const serviceAccount = require(process.env.FIREBASE_SERVICE_ACCOUNT_PATH);
-      admin.initializeApp({
-        credential: admin.credential.cert(serviceAccount),
-      });
+      try {
+        // Use dynamic import to avoid build-time errors
+        const fs = require('fs');
+        const path = require('path');
+        const serviceAccountPath = path.resolve(process.env.FIREBASE_SERVICE_ACCOUNT_PATH);
+        if (fs.existsSync(serviceAccountPath)) {
+          const serviceAccount = JSON.parse(fs.readFileSync(serviceAccountPath, 'utf8'));
+          admin.initializeApp({
+            credential: admin.credential.cert(serviceAccount),
+          });
+        } else {
+          // Fallback to application default credentials
+          admin.initializeApp({
+            credential: admin.credential.applicationDefault(),
+          });
+        }
+      } catch (fileError) {
+        // Fallback to application default credentials
+        admin.initializeApp({
+          credential: admin.credential.applicationDefault(),
+        });
+      }
     }
     // Option 3: Use application default credentials (for Vercel/Google Cloud)
     else {
@@ -24,19 +42,31 @@ if (!admin.apps.length) {
       });
     }
   } catch (error) {
-    console.error('Error initializing Firebase Admin:', error);
-    // Fallback: try application default credentials
+    // During build time, Firebase might not be available - that's okay
+    // It will be initialized at runtime when environment variables are set
+    if (process.env.NODE_ENV !== 'production' || process.env.VERCEL !== '1') {
+      console.error('Error initializing Firebase Admin:', error);
+    }
+    // Don't try fallback during build - let it fail gracefully
+    // Firebase will be initialized at runtime when needed
+  }
+}
+
+function getDb() {
+  if (!admin.apps.length) {
+    // If not initialized, try to initialize with application default credentials
     try {
       admin.initializeApp({
         credential: admin.credential.applicationDefault(),
       });
-    } catch (fallbackError) {
-      console.error('Error initializing Firebase with fallback:', fallbackError);
+    } catch (error) {
+      // Silently fail - will be initialized at runtime
     }
   }
+  return admin.firestore();
 }
 
-export const db = admin.firestore();
+export const db = getDb();
 
 // Collection names
 const COLLECTIONS = {

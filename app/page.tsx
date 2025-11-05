@@ -1,6 +1,6 @@
 'use client';
 
-import { useEffect, useState } from 'react';
+import { useEffect, useState, useCallback } from 'react';
 import Link from 'next/link';
 import { format, startOfToday, startOfWeek, startOfMonth } from 'date-fns';
 import BrownSugarLogo from '@/components/BrownSugarLogo';
@@ -30,10 +30,6 @@ export default function Home() {
     fetchEmails();
   }, []);
 
-  useEffect(() => {
-    filterEmails();
-  }, [filter, allEmails]);
-
   const fetchEmails = async () => {
     try {
       const response = await fetch('/api/emails?limit=1000');
@@ -49,7 +45,7 @@ export default function Home() {
     }
   };
 
-  const filterEmails = () => {
+  const filterEmails = useCallback(() => {
     if (filter === 'all') {
       setEmails(allEmails);
       return;
@@ -79,7 +75,11 @@ export default function Home() {
     });
 
     setEmails(filtered);
-  };
+  }, [filter, allEmails]);
+
+  useEffect(() => {
+    filterEmails();
+  }, [filterEmails]);
 
   return (
     <div className="min-h-screen bg-gradient-to-br from-gray-50 via-white to-gray-50">
